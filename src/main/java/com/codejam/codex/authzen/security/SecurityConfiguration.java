@@ -68,7 +68,7 @@ public class SecurityConfiguration {
             List<GrantedAuthority> authorities = new ArrayList<>();
 
             if (roles != null) {
-                roles.forEach(role -> authorities.add(new SimpleGrantedAuthority("ROLE_" + role)));
+                roles.forEach(role -> authorities.add(new SimpleGrantedAuthority(role)));
             }
 
             if (permissions != null) {
@@ -80,7 +80,6 @@ public class SecurityConfiguration {
 
         return converter;
     }
-
 
 
     /**
@@ -106,9 +105,9 @@ public class SecurityConfiguration {
                                 "/api/authenticate/user/refresh",
                                 "/css/**",
                                 "/js/**",
-                                "/swagger-ui/**",
                                 "/reset-password/**",
                                 "/api/authenticate/health",
+                                "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/swagger-resources/**",
@@ -166,6 +165,10 @@ public class SecurityConfiguration {
     @Bean
     public JwtDecoder jwtDecoder() {
         byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException("JWT secret key must be at least 32 bytes (256 bits) long for HS256. " +
+                    "Check your 'jwt.secret' property.");
+        }
         SecretKey key = new SecretKeySpec(keyBytes, "HmacSHA256");
         return NimbusJwtDecoder.withSecretKey(key).build();
     }

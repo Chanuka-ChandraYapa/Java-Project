@@ -35,7 +35,7 @@ public class AuthService {
 
     @Autowired
     public AuthService(JwtService jwtService, UserService userService, UserRepository userRepository,
-                       BCryptPasswordEncoder passwordEncoder, EmailUtil emailUtil, EmailTokenRepository emailTokenRepository, OauthProviderRepository oauthProviderRepository, OAuthService oAuthService, RoleRepository roleRepository, RefreshTokenRepository refreshTokenRepository) {
+                       BCryptPasswordEncoder passwordEncoder, EmailUtil emailUtil, EmailTokenRepository emailTokenRepository, OauthProviderRepository oauthProviderRepository, OAuthService oauthService, OAuthService oAuthService, RoleRepository roleRepository, RefreshTokenRepository refreshTokenRepository) {
         this.jwtService = jwtService;
         this.userService = userService;
         this.userRepository = userRepository;
@@ -55,6 +55,10 @@ public class AuthService {
      * @return true if registration was successful, false otherwise.
      */
     public UserResponse registerUser(RegisterRequest request) {
+        Optional<User> existingUser = userRepository.findByEmail(request.getEmail());
+        if (existingUser.isPresent()) {
+            throw new RuntimeException("Given Details already exists");
+        }
 
         List<Role> roles = roleRepository.findByName("ROLE_USER");
         if (roles.isEmpty()) {
@@ -67,17 +71,18 @@ public class AuthService {
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setActive(true);
+        user.setLocked(false);
         user.setCreatedAt(new java.sql.Timestamp(System.currentTimeMillis()));
 
         UserRole userRoleMapping = new UserRole();
-        userRoleMapping.setUser(new User());
+        userRoleMapping.setUser(user);
         userRoleMapping.setRole(userRole);
         user.getUserRoles().add(userRoleMapping);
 
-        userRepository.save(new User());
-        List<String> permissionNames = new ArrayList<>();
+        userRepository.save(user);
+        List<String> permissionNames = userRepository.findPermissionNamesByUsername(user.getUsername());
 
-        return UserResponse.fromEntity(new User(), permissionNames);
+        return UserResponse.fromEntity(user, permissionNames);
     }
 
 
@@ -91,7 +96,7 @@ public class AuthService {
         Optional<User> userOptional = userRepository.findByEmail(request.getEmail());
         if (userOptional.isPresent()) {
             User user = userOptional.get();
-            if (request.getPassword().equals(user.getPassword())) {
+            if (passwordEncoder.matches(request.getPassword(), user.getPassword())) {
                 UserResponse userResponse = userService.loadUserByUsername(user.getEmail());
                 List<String> permissionNames = userRepository.findPermissionNamesByUsername(user.getUsername());
                 userResponse.setPermissions(permissionNames);
@@ -112,31 +117,30 @@ public class AuthService {
      */
     public TokenResponse authenticateOAuth(OAuthRequest request) {
         if ("github".equalsIgnoreCase(request.getProvider())) {
-            String oAuthAccessToken = oAuthService.getGithubAccessToken(request.getOauthToken());
-            Map<String, Object> githubUser = oAuthService.getGithubUser(oAuthAccessToken);
+            String accessToken = oAuthService.getGithubAccessToken(request.getOauthToken());
+            Map<String, Object> githubUser = oAuthService.getGithubUser(accessToken);
 
             String githubId = githubUser.get("id").toString();
             String githubEmail = (String) githubUser.get("email");
             String githubLogin = (String) githubUser.get("login");
 
+            // Check if provider mapping exists
             Optional<OauthProvider> providerOpt = oauthProviderRepository.findByProviderAndExternalUserId("github", githubId);
+
             User user;
             if (providerOpt.isPresent()) {
                 user = providerOpt.get().getUser();
             } else {
-                Optional<User> existingUserOpt = userRepository.findByEmail(githubEmail);
-                if (existingUserOpt.isPresent()) {
-                    user = existingUserOpt.get();
-                } else {
-                    user = User.builder()
-                            .username(githubLogin)
-                            .email(githubEmail)
-                            .isActive(true)
-                            .isLocked(false)
-                            .userRoles(new HashSet<>())
-                            .build();
-                    user = userRepository.save(user);
-                }
+                // Check by email (if exists)
+                user = userRepository.findByEmail(githubEmail)
+                        .orElseGet(() -> userRepository.save(User.builder()
+                                .username(githubLogin)
+                                .email(githubEmail)
+                                .password("") // no password
+                                .isActive(true)
+                                .isLocked(false)
+                                .build()));
+
                 oauthProviderRepository.save(OauthProvider.builder()
                         .provider("github")
                         .externalUserId(githubId)
@@ -145,15 +149,13 @@ public class AuthService {
             }
 
             UserResponse userResponse = userService.loadUserByUsername(user.getEmail());
-            String accessToken = jwtService.generateAccessToken(userResponse);
-            String refreshToken = jwtService.generateRefreshToken(userResponse);
-
-            return new TokenResponse(accessToken, refreshToken);
+            return new TokenResponse(
+                    jwtService.generateAccessToken(userResponse),
+                    jwtService.generateRefreshToken(userResponse)
+            );
         }
-
         return null;
     }
-
 
     /**
      * Sends a password reset email to the user.

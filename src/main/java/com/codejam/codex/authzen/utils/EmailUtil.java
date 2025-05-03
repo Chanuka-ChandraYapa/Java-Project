@@ -19,6 +19,7 @@ public class EmailUtil {
     public EmailUtil(JavaMailSender javaMailSender) {
         this.javaMailSender = javaMailSender;
     }
+
     /**
      * Sends a plain text email (e.g., password reset email).
      *
@@ -29,7 +30,8 @@ public class EmailUtil {
      * @return true if email is sent successfully, false otherwise.
      */
     public boolean sendPasswordResetEmail(String toEmail, String subject, String body, String resetLink) {
-        String formattedBody = body;
+        String formattedBody = body.replace("${resetLink}", resetLink);
+
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
@@ -39,10 +41,9 @@ public class EmailUtil {
             javaMailSender.send(message);
             return true;
         } catch (MailException e) {
-            return true;
+            return false;
         }
     }
-
 
     /**
      * Sends an HTML email (can be used for richer formatted emails).
@@ -61,11 +62,11 @@ public class EmailUtil {
             helper.setFrom(fromEmail);
             helper.setTo(toEmail);
             helper.setSubject(subject);
-            helper.setText(formattedBody, false);
+            helper.setText(formattedBody, true);
             javaMailSender.send(mimeMessage);
             return true;
         } catch (MailException | jakarta.mail.MessagingException e) {
+            return false;
         }
-        return true;
     }
 }

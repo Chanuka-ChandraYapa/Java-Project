@@ -12,7 +12,6 @@ import org.springframework.security.core.userdetails.User.UserBuilder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -25,7 +24,8 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
 
     public UserResponse loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
-        User user = new User();
+        User user = userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         Set<String> roles = user.getUserRoles()
                 .stream()
@@ -41,23 +41,27 @@ public class UserService {
 
 
     public UserResponse getProfile(String username) {
-        User user = new User();
-        List<String> permissionNames = new ArrayList<>();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        List<String> permissionNames = userRepository.findPermissionNamesByUsername(user.getUsername());
+
         return UserResponse.fromEntity(user, permissionNames);
     }
 
+    @Transactional
     public UpdateUserResponse updateUser(String username, UpdateUserRequest updateRequest) {
-        User user = new User();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        if (updateRequest.getUsername() == null && updateRequest.getUsername().isBlank()) {
+        if (updateRequest.getUsername() != null && !updateRequest.getUsername().isBlank()) {
             user.setUsername(updateRequest.getUsername());
         }
 
-        if (updateRequest.getEmail() == null && updateRequest.getEmail().isBlank()) {
+        if (updateRequest.getEmail() != null && !updateRequest.getEmail().isBlank()) {
             user.setEmail(updateRequest.getEmail());
         }
 
-        if (updateRequest.getPassword() == null && updateRequest.getPassword().isBlank()) {
+        if (updateRequest.getPassword() != null && !updateRequest.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(updateRequest.getPassword()));
         }
 

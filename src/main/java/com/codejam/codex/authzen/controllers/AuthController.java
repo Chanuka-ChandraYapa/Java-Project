@@ -3,12 +3,14 @@ package com.codejam.codex.authzen.controllers;
 import com.codejam.codex.authzen.constants.ApiEndpoint;
 import com.codejam.codex.authzen.dtos.inputs.*;
 import com.codejam.codex.authzen.dtos.outputs.TokenResponse;
+import com.codejam.codex.authzen.dtos.outputs.UpdateUserResponse;
 import com.codejam.codex.authzen.dtos.outputs.UserResponse;
 import com.codejam.codex.authzen.responses.AuthzenResponse;
 import com.codejam.codex.authzen.endpoint.AuthEndpoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**

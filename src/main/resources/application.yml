@@ -54,15 +54,3 @@ admin:
   email: ${ADMIN_EMAIL}
   username: ${ADMIN_USERNAME}
   password: ${ADMIN_PASSWORD}
-
-
-springdoc:
-  api-docs:
-    enabled: true
-    path: /v3/api-docs
-  swagger-ui:
-    enabled: true
-    path: /swagger-ui.html
-    operationsSorter: alpha
-    tagsSorter: alpha
-    display-request-duration: true

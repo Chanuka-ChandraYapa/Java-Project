@@ -9,6 +9,8 @@ import com.codejam.codex.authzen.dtos.outputs.UpdateUserResponse;
 import com.codejam.codex.authzen.dtos.outputs.UserResponse;
 import com.codejam.codex.authzen.endpoint.AdminEndpoint;
 import com.codejam.codex.authzen.endpoint.AuthEndpoint;
+import com.codejam.codex.authzen.models.AuditLog;
+import com.codejam.codex.authzen.models.User;
 import com.codejam.codex.authzen.responses.AuthzenResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
